@@ -2,15 +2,23 @@ import React, { useRef, useState } from "react";
 import ReactToPrint from "react-to-print";
 import ContentsSection from "./ContentsSection";
 import InstructionsSection from "./InstructionsSection";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
+import DatePicker from "react-datepicker"; // Import DatePicker
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import "react-datepicker/dist/react-datepicker.css";
 
 const ChemicalLabel = () => {
   const componentRefs = useRef([]);
 
   const [chemicals, setChemicals] = useState([
-    { chemicalName: "", volume: "", contents: [], temperature: "" },
+    {
+      chemicalName: "",
+      volume: "",
+      contents: [],
+      temperature: "",
+      date: new Date(),
+    },
   ]);
 
   const updateChemical = (index, updatedFields) => {
@@ -19,27 +27,23 @@ const ChemicalLabel = () => {
     return updatedChemicals;
   };
 
-  const date = format(new Date(), "dd MMMM yyyy");
-
   const printStyle = `
     @page {
-      margin: 20mm; /* Adjust the margin size as needed */
+      margin: 20mm;
     }
     body {
-      margin: 20mm; /* Adjust the margin size as needed */
+      margin: 20mm;
     }
     @media print {
-      /* Hide default header added by browser */
       @page {
         margin-top: 0;
       }
       body::before {
-        content: "\\200B"; /* Zero-width space character to create an empty element */
+        content: "\\200B";
         display: block;
-        height: 10mm; /* Adjust the top margin size as needed */
-        page-break-before: always; /* Ensure the top margin on the first page */
+        height: 10mm;
+        page-break-before: always;
       }
-      /* Hide default footer added by browser */
       @page {
         margin-bottom: 0;
       }
@@ -73,26 +77,26 @@ const ChemicalLabel = () => {
 
   const downloadAllPDFs = () => {
     const pdf = new jsPDF();
-
-    // Iterate over each chemical and add it to the PDF
     chemicals.forEach((chemical, index) => {
-      // Add a new page for each chemical (except the first one)
       if (index !== 0) {
         pdf.addPage();
       }
+
+      const formattedDate = isValid(chemical.date)
+        ? format(chemical.date, "dd MMMM yyyy")
+        : "Invalid Date";
 
       pdf.fromHTML(componentRefs.current[index], 10, 10, {
         width: 180,
       });
     });
-
-    // Save the PDF
     pdf.save("All_Chemical_Labels.pdf");
   };
+
   return (
-    <div className="max-w-2xl mx-auto p-4 border border-gray-300 rounded-lg mt-10">
+    <div className="max-w-2xl mx-auto p-4 border border-gray-300 rounded-lg mt-10 bg-white shadow-md">
       {chemicals.map((chemical, index) => (
-        <div key={index} className="mt-4">
+        <div key={index} className="mt-4 p-6 bg-gray-100 rounded-md">
           <div className="mt-4" style={{ display: "none" }}>
             <div
               ref={(el) => (componentRefs.current[index] = el)}
@@ -101,20 +105,22 @@ const ChemicalLabel = () => {
               <div>
                 <h1 className="text-2xl font-bold">{chemical.chemicalName}</h1>
                 <p className="text-base">{`Volume: ${chemical.volume}`}</p>
-                <p className="text-base">{date}</p>
+                <p className="text-base">
+                  {isValid(chemical.date)
+                    ? format(chemical.date, "dd MMMM yyyy")
+                    : "Invalid Date"}
+                </p>
               </div>
-
               <ContentsSection contents={chemical.contents} isPrintable />
               <InstructionsSection
                 temperature={chemical.temperature}
                 isPrintable
               />
-
-              <div className=" text-lg font-bold">Tidal Grow Agriscience</div>
+              <div className="text-lg font-bold">Tidal Grow Agriscience</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-4">
             <button
               className="bg-red-500 text-white px-4 py-2"
               onClick={() => deleteChemical(index)}
@@ -151,6 +157,17 @@ const ChemicalLabel = () => {
               }
             />
           </div>
+          <div className="mt-4">
+            <label className="block text-sm font-semibold mb-1 mt-1">
+              Date
+            </label>
+            <DatePicker
+              selected={chemical.date}
+              onChange={(date) => setChemicals(updateChemical(index, { date }))}
+              dateFormat="dd MMMM yyyy" // Set the date format
+              className="w-full p-2 border border-gray-300"
+            />
+          </div>
           <ContentsSection
             contents={chemical.contents}
             setContents={(newContents) =>
@@ -172,11 +189,11 @@ const ChemicalLabel = () => {
               }
             />
           </div>
-          <div>
+          <div className="mt-4">
             <ReactToPrint
               trigger={() => (
                 <button
-                  className="bg-blue-500 text-white px-4 py-2 mt-5 rounded-lg mr-5"
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg mr-5"
                   onClick={() => downloadPDF(index)}
                 >
                   Download PDF
@@ -188,15 +205,16 @@ const ChemicalLabel = () => {
               noHeaders
               noFooter
             />
-            <button
-              className="bg-green-500 rounded-lg text-white px-4 py-2 mt-4"
-              onClick={addChemical}
-            >
-              Add Chemical
-            </button>
           </div>
         </div>
       ))}
+
+      <button
+        className="bg-green-500 rounded-lg text-white px-4 py-2 mt-4"
+        onClick={addChemical}
+      >
+        Add Chemical
+      </button>
     </div>
   );
 };
